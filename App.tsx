@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Modal, ScrollView} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Modal, ScrollView, Alert} from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
@@ -19,14 +19,22 @@ interface FloorTimeData {
   time: string;
 }
 
+type StatusType = 'error' | 'success';
+
 export default function App() {
   const [fileSelected, setFileSelected] = useState<{ txt: boolean, xlsx: boolean }>({ txt: false, xlsx: false });
-  const [datesMatch, setDatesMatch] = useState<boolean>(false);
-  const [fileReady, setFileReady] = useState<boolean>(true);
+  const [datesMatch, setDatesMatch] = useState<boolean>(true);
+  const [fileReady, setFileReady] = useState<boolean>(false);
   const [parsedEvents, setParsedEvents] = useState<string[]>([]);
   const [processedData, setProcessedData] = useState<string[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [nonMatchingData, setNonMatchingData] = useState<string[]>([]);
+  const [txtDate, setTxtDate] = useState<string>('');
+  const [xlsxDate, setXlsxDate] = useState<string>('');
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [statusType, setStatusType] = useState<StatusType>('success');
+  const [statusTimeoutId, setStatusTimeoutId] = useState<number | null>(null);
+
 
   const handleFileSelect = async (fileType: 'txt' | 'xlsx') => {
     try {
@@ -35,42 +43,46 @@ export default function App() {
       });
 
       if (!result.canceled && result.assets && result.assets[0].uri) {
+        setFileReady(false);
         const fileUri = result.assets[0].uri;
         const fileContent = await FileSystem.readAsStringAsync(fileUri, 
           fileType === 'txt' ? undefined : { encoding: FileSystem.EncodingType.Base64 }
         );
 
-        if (fileType === 'txt') {
-          const parsedEvents = parseTxtFile(fileContent);
-          setParsedEvents(parsedEvents);
-          console.log(parsedEvents);
-        } else if (fileType === 'xlsx') {
-          const workbook = XLSX.read(fileContent, { type: 'base64' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const json: ExcelDataRow[] = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+      if (fileType === 'txt') {
+        const { parsedEvents, startDate } = parseTxtFile(fileContent);
+        setParsedEvents(parsedEvents);
+        setTxtDate(startDate); 
+      } 
+        
+      if (fileType === 'xlsx') {
+        const workbook = XLSX.read(fileContent, { type: 'base64' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json: ExcelDataRow[] = XLSX.utils.sheet_to_json(worksheet, { raw: false });
 
-          const processedData = json.filter(row => row['Оплачен'] === 'Да').map(row => {
-            const floor = showcaseToFloorMapping[row['Номер витрины'].toString()];
-            if (!floor) return null;  // Исключаем строки с номерами витрин, которых нет в маппинге
+        setXlsxDate(extractDateFromXlsx(json));
+
+        const processedData = json.filter(row => row['Оплачен'] === 'Да').map(row => {
+          const floor = showcaseToFloorMapping[row['Номер витрины'].toString()];
+          if (!floor) return null;  // Исключаем строки с номерами витрин, которых нет в маппинге
           
-            const date = parseDateString(row['Дата создания']);
-            if (date) {
-              const hours = formatTimePart(date.getHours());
-              const minutes = formatTimePart(date.getMinutes());
-              const seconds = formatTimePart(date.getSeconds());
-              const formattedDate = `${hours}:${minutes}:${seconds}`;
-              return `${floor} ${formattedDate}`;
-            } else {
-              return null; 
-            }
-          }).filter(row => row !== null) as string[];
+          const date = parseDateString(row['Дата создания']);
+          if (date) {
+            const hours = formatTimePart(date.getHours());
+            const minutes = formatTimePart(date.getMinutes());
+            const seconds = formatTimePart(date.getSeconds());
+            const formattedDate = `${hours}:${minutes}:${seconds}`;
+            return `${floor} ${formattedDate}`;
+          } else {
+            return null; 
+          }
+        }).filter(row => row !== null) as string[];
+        setProcessedData(processedData);
+      }
 
-          setProcessedData(processedData);
-          console.log(processedData);
-        }
-
-        setFileSelected({ ...fileSelected, [fileType]: true });
+      setFileSelected({ ...fileSelected, [fileType]: true });
+      
       } else {
         console.log('Выбор файла отменен');
       }
@@ -79,11 +91,20 @@ export default function App() {
     }
   }; 
 
-  const parseTxtFile = (fileContent: string) => {
+  const extractDateFromXlsx = (json: ExcelDataRow[]): string => {
+    if (json.length > 0 && json[0]['Дата создания']) {
+      const dateTime = json[0]['Дата создания'].trim();
+      const datePart = dateTime.split(' ')[0]; // Получаем только дату
+      return datePart;
+    }
+    return '';
+  };
+
+  const parseTxtFile = (fileContent: string): { parsedEvents: string[], startDate: string } => {
     const events = fileContent.split('Дата').filter(event => 
       event.includes('Начало события') && event.includes('Тип события:Локальная тревога')
     );
-    return events.map(event => {
+    const parsedEvents = events.map(event => {
       const lines = event.split('\n');
       const channelLine = lines.find(line => line.startsWith('Канал:'));
       const startTimeLine = lines.find(line => line.startsWith('Начало:'));
@@ -94,7 +115,27 @@ export default function App() {
       const floor = channelToFloorMapping[channel];
       return floor ? `${floor} ${startTime}` : null;
     }).filter(event => event !== null) as string[]; 
+
+    const startDateLine = fileContent.split('\n').find(line => line.includes('Дата:'));
+    let startDate = startDateLine ? startDateLine.split('Дата:')[1].trim() : '';
+
+    if (startDate) {
+      const dateParts = startDate.split(' ')[0].split('-'); // Разделяем дату и время, затем дату на компоненты
+      startDate = [dateParts[2], dateParts[1], dateParts[0]].join('.'); // Объединяем компоненты даты без разделителей 
+    }
+
+    return { parsedEvents, startDate };  
   };
+
+  useEffect(() => {
+    if (txtDate && xlsxDate) {
+      setDatesMatch(txtDate === xlsxDate);
+      if (txtDate != xlsxDate){
+        updateStatusBar('Даты не совпадают', 'error', 3000);
+      }
+
+    }
+  }, [txtDate, xlsxDate]);
 
   const parseDateString = (dateStr: string): Date | null => {
     const dateTimeParts = dateStr.split(' ');
@@ -137,13 +178,14 @@ export default function App() {
 
   const showcaseToFloorMapping: InfoToFloorMapping = {
     '667': '19',
-    '854': '20',
+    '668': '20',
     '669': '21',
     '670': '22',
     '671': '23',
     '672': '24',
     '673': '25',
     '674': '26',
+    '854': '20',
   };
 
   const timePeriod = 60 * 1000;
@@ -159,6 +201,7 @@ export default function App() {
     const nonMatchingEvents = parsedEvents.filter(parsedEvent => {
       const [parsedFloor, parsedTime] = parsedEvent.split(' ');
       const parsedTimeInMs = parseTimeToMilliseconds(parsedTime);
+      setFileReady(true);
   
       return !processedData.some(processedEvent => {
         const [processedFloor, processedTime] = processedEvent.split(' ');
@@ -172,8 +215,43 @@ export default function App() {
   };
   
   const compareData = () => {
-    const nonMatchingEvents = findNonMatchingEvents(parsedEvents, processedData);
-    setNonMatchingData(nonMatchingEvents);
+    if (fileReady) {
+      Alert.alert(
+        "Подтверждение", // Заголовок
+        "Вы уверены?", // Сообщение
+        [
+          {
+            text: "Нет",
+            onPress: () => console.log("Отмена"),
+            style: "cancel"
+          },
+          { 
+            text: "Да", 
+            onPress: () => {
+              setFileReady(false);
+              setProcessedData([]);
+              setTxtDate('');
+              setXlsxDate('');
+              setFileSelected({ txt: false, xlsx: false });
+              updateStatusBar('');
+              return;
+            }
+          }
+        ],
+        { cancelable: true }
+      );
+    }
+    if (datesMatch && fileSelected.txt && fileSelected.xlsx) {
+      const nonMatchingEvents = findNonMatchingEvents(parsedEvents, processedData);
+      setNonMatchingData(nonMatchingEvents);
+      updateStatusBar('Готово!', 'success');
+    } else if (!fileSelected.txt) {
+      updateStatusBar('Файл txt не выбран', 'error', 3000);
+    } else if (!fileSelected.xlsx) {
+      updateStatusBar('Файл xlsx не выбран', 'error', 3000);
+    } else if (!datesMatch) {
+      updateStatusBar('Даты не совпадают', 'error', 3000);
+    }
   };
 
   const parseAndSortData = (data: string[]): FloorTimeData[] => {
@@ -187,6 +265,29 @@ export default function App() {
   
     return parsedData;
   }
+  const viewResult = () => {
+    if (fileReady) {
+      setIsModalVisible(true);
+    } else {
+      updateStatusBar('Файлы не обработаны', 'error', 3000);
+    }
+  }
+
+  const updateStatusBar = (message: string, type: StatusType = 'success', duration: number = Infinity) => {
+    if (statusTimeoutId !== null) {
+      clearTimeout(statusTimeoutId);
+    }
+
+    setStatusMessage(message);
+    setStatusType(type);
+  
+    if (duration !== Infinity) {
+      const id = setTimeout(() => {
+        setStatusMessage('');
+      }, duration) as unknown as number;
+      setStatusTimeoutId(id);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -202,7 +303,7 @@ export default function App() {
           <View style={styles.statusContainer}>
             <View style={fileSelected.txt ? styles.statusIndicatorSelected : styles.statusIndicatorNotSelected} />
             <Text style={fileSelected.txt ? styles.statusTextSelected : styles.statusTextNotSelected}>
-              {fileSelected.txt ? 'Файл выбран' : 'Файл не выбран'}
+              {fileSelected.txt ? txtDate : 'Файл не выбран'}
             </Text>
           </View>
         </View>
@@ -218,34 +319,33 @@ export default function App() {
           <View style={styles.statusContainer}>
             <View style={fileSelected.xlsx ? styles.statusIndicatorSelected : styles.statusIndicatorNotSelected} />
             <Text style={fileSelected.xlsx ? styles.statusTextSelected : styles.statusTextNotSelected}>
-              {fileSelected.xlsx ? 'Файл выбран' : 'Файл не выбран'}
+              {fileSelected.xlsx ? xlsxDate : 'Файл не выбран'}
             </Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.statusContainer}>
-        <Text style={datesMatch ? styles.statusTextSelected : styles.statusTextNotSelected} >
-          {datesMatch ? '' : 'Даты не совпадают'}
-        </Text>
-      </View>
-
-      <View style={styles.startButton}>
-        <TouchableOpacity style={styles.customButton} onPress={() => compareData()}>
-          <Text style={styles.buttonText}>Старт</Text>
+      <View style={styles.startButton} >
+        <TouchableOpacity 
+          style={[
+            styles.customButton, 
+            { backgroundColor: fileReady ? '#FF7F50' : 'green' }
+          ]} 
+          onPress={() => compareData()}>
+            <Text style={styles.buttonText}>{fileReady ? 'Сброс' : 'Старт'} </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.statusContainer}>
-        <Text style={styles.statusTextNotSelected}>
-          {fileReady ? 'Готово!' : ''}
-        </Text>
       </View>
 
       <View style={styles.watchButton}>
-        <TouchableOpacity style={styles.customButton} onPress={() => setIsModalVisible(true)}>
+        <TouchableOpacity style={styles.customButton} onPress={() => viewResult()}>
           <Text style={styles.buttonText}>Посмотреть</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.statusContainer}>
+      <Text style={statusType === 'success' ? styles.statusTextSelected : styles.statusTextNotSelected }>
+          {statusMessage}
+        </Text>
       </View>
 
       <Modal
@@ -288,9 +388,16 @@ const styles = StyleSheet.create({
   customButton: {
     height: '120%',
     backgroundColor: 'green',
-    borderRadius: 10,
+    borderRadius: 30,
     justifyContent: 'center', 
     alignItems: 'center', 
+    shadowColor: '#fff', // Цвет тени
+    shadowOffset: { width: 0, height: 4 }, // Направление и величина тени
+    shadowOpacity: 0.3, // Прозрачность тени
+    shadowRadius: 30, // Радиус размытия тени
+    elevation: 30, // Высота тени для Android
+    borderWidth: 1, // Толщина границы
+    borderColor: '#000', // Цвет границы
   },
   buttonText: {
     color: 'white',
@@ -304,7 +411,7 @@ const styles = StyleSheet.create({
     color: 'green',
   },
   statusTextNotSelected: {
-    color: 'red',
+    color: '#FF7F50',
   },
   statusContainer: {
     flex: 1,
@@ -323,10 +430,16 @@ const styles = StyleSheet.create({
     height: 10,
     width: 10,
     borderRadius: 5,
-    backgroundColor: 'red',
+    backgroundColor: '#FF7F50',
     marginRight: 5,
   },
   startButton: {
+    flex: 2,
+    width: '40%',
+    marginVertical: '10%',
+    alignSelf: 'center', 
+  },
+  resetButton: {
     flex: 2,
     width: '40%',
     marginVertical: '10%',
