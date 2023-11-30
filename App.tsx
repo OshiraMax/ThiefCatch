@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Modal, ScrollView, Alert} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, TextInput, Modal, ScrollView, Alert} from 'react-native';
+
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
+import * as Font from 'expo-font';
+
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { setCustomText } from 'react-native-global-props';
 
 interface ExcelDataRow {
   'Номер витрины': number;
@@ -20,6 +25,7 @@ interface FloorTimeData {
 }
 
 type StatusType = 'error' | 'success';
+type ModalContentType = 'results' | 'settings';
 
 export default function App() {
   const [fileSelected, setFileSelected] = useState<{ txt: boolean, xlsx: boolean }>({ txt: false, xlsx: false });
@@ -28,12 +34,38 @@ export default function App() {
   const [parsedEvents, setParsedEvents] = useState<string[]>([]);
   const [processedData, setProcessedData] = useState<string[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [nonMatchingData, setNonMatchingData] = useState<string[]>([]);
+  const [nonMatchingData, setNonMatchingData] = useState<FloorTimeData[]>([]);
   const [txtDate, setTxtDate] = useState<string>('');
   const [xlsxDate, setXlsxDate] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [statusType, setStatusType] = useState<StatusType>('success');
   const [statusTimeoutId, setStatusTimeoutId] = useState<number | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
+  const [fontsLoaded, setFontsLoaded] = useState<boolean>(false);
+  const [modalContent, setModalContent] = useState<ModalContentType>('results');
+  const [timePeriodSec, setTimePeriodSec] = useState<number>(60);
+
+
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'Futura Round Demi': require('./assets/fonts/FuturaRoundDemi.ttf'),
+        });
+        setFontsLoaded(true);
+        const customTextProps = {
+          style: {
+            fontFamily: 'Futura Round Demi'
+          }
+        };
+        
+        setCustomText(customTextProps);
+      } catch (error) {
+        console.error("Ошибка при загрузке шрифтов", error);
+      }
+    }
+    loadFonts();
+  }, []);
 
 
   const handleFileSelect = async (fileType: 'txt' | 'xlsx') => {
@@ -137,6 +169,8 @@ export default function App() {
     }
   }, [txtDate, xlsxDate]);
 
+  const timePeriod = timePeriodSec * 1000;
+
   const parseDateString = (dateStr: string): Date | null => {
     const dateTimeParts = dateStr.split(' ');
     if (dateTimeParts.length !== 2) return null;
@@ -187,8 +221,6 @@ export default function App() {
     '674': '26',
     '854': '20',
   };
-
-  const timePeriod = 60 * 1000;
 
   const parseTimeToMilliseconds = (timeStr: string): number => {
     const parts = timeStr.split(':');
@@ -242,7 +274,10 @@ export default function App() {
       );
     }
     if (datesMatch && fileSelected.txt && fileSelected.xlsx) {
-      const nonMatchingEvents = findNonMatchingEvents(parsedEvents, processedData);
+      const nonMatchingEvents = findNonMatchingEvents(parsedEvents, processedData).map(event => {
+        const [floorStr, time] = event.split(' ');
+        return { floor: parseInt(floorStr, 10), time };
+      });;
       setNonMatchingData(nonMatchingEvents);
       updateStatusBar('Готово!', 'success');
     } else if (!fileSelected.txt) {
@@ -254,20 +289,13 @@ export default function App() {
     }
   };
 
-  const parseAndSortData = (data: string[]): FloorTimeData[] => {
-    const parsedData = data.map(item => {
-      const [floor, time] = item.split(' ');
-      return { floor: parseInt(floor, 10), time };
-    });
+  const parseAndSortData = (data: FloorTimeData[]): FloorTimeData[] => {
     
-    parsedData.reverse();
-    parsedData.sort((a, b) => a.floor - b.floor);
-  
-    return parsedData;
+    return [...data].reverse().sort((a, b) => a.floor - b.floor);
   }
   const viewResult = () => {
     if (fileReady) {
-      setIsModalVisible(true);
+      handleShowModal('results');
     } else {
       updateStatusBar('Файлы не обработаны', 'error', 3000);
     }
@@ -287,6 +315,20 @@ export default function App() {
       }, duration) as unknown as number;
       setStatusTimeoutId(id);
     }
+  };
+
+  const handleSelectFloor = (floor: number) => {
+    setSelectedFloor(floor);
+  };
+
+  const uniqueFloors = Array.from(new Set(nonMatchingData.map(item => item.floor))).sort((a, b) => a - b);
+                      
+  const handleSettingsPress = () => {
+    handleShowModal('settings');
+  }
+  const handleShowModal = (content: ModalContentType) => {
+    setModalContent(content);
+    setIsModalVisible(true);
   };
 
   return (
@@ -348,6 +390,10 @@ export default function App() {
         </Text>
       </View>
 
+      <TouchableOpacity onPress={handleSettingsPress} style={styles.settingsButton}>
+        <Icon name="gear" size={30} color="#fff" />
+      </TouchableOpacity>
+
       <Modal
         animationType="slide"
         transparent={true}
@@ -356,18 +402,58 @@ export default function App() {
           setIsModalVisible(!isModalVisible);
         }}>
         <View style={styles.modalView}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {parseAndSortData(nonMatchingData).map((item, index) => (
-              <Text key={index} style={styles.modalText}>
-                {item.floor} этаж {item.time}
-              </Text>
-            ))}
-          </ScrollView>
-          <TouchableOpacity
-            style={[styles.button, styles.buttonClose]}
-            onPress={() => setIsModalVisible(!isModalVisible)}>
-            <Text style={styles.textStyle}>Закрыть</Text>
-          </TouchableOpacity>
+          {modalContent === 'results' && (
+            <View>
+              <View style={styles.floorSelectContainer}>
+                {uniqueFloors.map((floor) => (
+                  <TouchableOpacity key={floor} onPress={() => handleSelectFloor(floor)}>
+                    <Text style={styles.floorSelectText}>{floor}</Text>
+                  </TouchableOpacity>
+                ))}
+                  <TouchableOpacity onPress={() => setSelectedFloor(null)}>
+                    <Text style={styles.floorSelectText}>Все</Text>
+                  </TouchableOpacity>
+              </View>
+              
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {parseAndSortData(nonMatchingData)
+                  .filter(item => selectedFloor === null || item.floor === selectedFloor)
+                  .map((item, index) => (
+                    <Text key={`${item.floor}-${item.time}-${index}`} style={styles.modalText}>
+                      {item.floor} этаж {item.time}
+                    </Text>
+                  ))}
+              </ScrollView>
+            
+              <TouchableOpacity
+                style={[styles.button, styles.buttonClose]}
+                onPress={() => setIsModalVisible(!isModalVisible)}>
+                <Text style={styles.textStyle}>Закрыть</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {modalContent === 'settings' && (
+            <View>
+              <View>
+                <Text>Введите период времени:</Text>
+                <TextInput
+                  style={styles.input}
+                  onChangeText={(text) => setTimePeriodSec(Number(text))}
+                  value={timePeriodSec.toString()}
+                  keyboardType="numeric"
+                />
+              </View>
+              <ScrollView>
+                <Text>Настройки этажей</Text>
+              </ScrollView>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonClose]}
+                onPress={() => setIsModalVisible(!isModalVisible)}>
+                <Text style={styles.textStyle}>Закрыть</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </Modal>
     </View>
@@ -453,10 +539,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   modalView: {
+    height: "95%",
     margin: 20,
+    marginBottom: 60,
     backgroundColor: "white",
     borderRadius: 20,
-    padding: 35,
+    padding: 15,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
@@ -481,8 +569,38 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   button: {
+    marginTop: 15,
     borderRadius: 20,
     padding: 10,
     elevation: 2
+  },
+  floorSelectContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    padding: 10,
+  },
+  floorSelectText: {
+      // Пример стиля для текста на кнопках выбора этажа
+    marginHorizontal: 5,
+    marginBottom: 10,
+    padding: 5,
+    backgroundColor: 'green',
+    borderRadius: 50,
+    color: 'white',
+  },
+  settingsButton: {
+    position: 'absolute',
+    bottom: 25, // Или другое значение для позиционирования
+    right: 25, // Или другое значение для позиционирования
+  },
+  input: {
+    height: 40,
+    margin: 12,
+    borderWidth: 1,
+    padding: 10,
+    color: 'black',
+    backgroundColor: 'white',
   },
 });
