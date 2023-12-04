@@ -13,6 +13,8 @@
     "expo-document-picker": "~11.5.4",
     "expo-file-system": "~15.4.5",
     "expo-status-bar": "~1.6.0",
+    "mobx": "^6.12.0",
+    "mobx-react": "^9.1.0",
     "react": "18.2.0",
     "react-native": "0.72.6",
     "react-native-global-props": "^1.1.5",

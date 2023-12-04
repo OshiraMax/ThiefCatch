@@ -1,0 +1,74 @@
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+
+import { globalStore } from '../mobx/GlobalStore';
+
+interface InfoToFloorMapping {
+    [key: string]: string;
+  }
+
+export const handleTxtFileSelect = async () => {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'text/plain',
+    });
+
+    if (!result.canceled && result.assets && result.assets[0].uri) {
+      globalStore.setFileReady(false);
+      const fileUri = result.assets[0].uri;
+      const fileContent = await FileSystem.readAsStringAsync(fileUri);
+
+      const { parsedEvents, startDate } = parseTxtFile(fileContent);
+      globalStore.setParsedEvents(parsedEvents);
+      globalStore.setTxtDate(startDate);
+      globalStore.setFileSelected({ txt: true, xlsx: globalStore.fileSelected.xlsx });
+    } else {
+      console.log('Выбор файла отменен');
+    }
+  } catch (error) {
+    console.error('Ошибка при выборе файла:', error);
+  }
+};
+
+const parseTxtFile = (fileContent: string): { parsedEvents: string[], startDate: string } => {
+    const events = fileContent.split('Дата').filter(event => 
+        event.includes('Начало события') && event.includes('Тип события:Локальная тревога')
+      );
+      const parsedEvents = events.map(event => {
+        const lines = event.split('\n');
+        const channelLine = lines.find(line => line.startsWith('Канал:'));
+        const startTimeLine = lines.find(line => line.startsWith('Начало:'));
+        
+        const channel = channelLine ? channelLine.split(':')[1].trim() : '';
+        const startTime = startTimeLine ? startTimeLine.split(' ')[1].trim() : '';
+    
+        const floor = channelToFloorMapping[channel];
+        return floor ? `${floor} ${startTime}` : null;
+      }).filter(event => event !== null) as string[]; 
+  
+      const startDateLine = fileContent.split('\n').find(line => line.includes('Дата:'));
+      let startDate = startDateLine ? startDateLine.split('Дата:')[1].trim() : '';
+  
+      if (startDate) {
+        const dateParts = startDate.split(' ')[0].split('-'); // Разделяем дату и время, затем дату на компоненты
+        startDate = [dateParts[2], dateParts[1], dateParts[0]].join('.'); // Объединяем компоненты даты без разделителей 
+      }
+  
+      return { parsedEvents, startDate };  
+    };
+
+const channelToFloorMapping: InfoToFloorMapping = {
+    '1': '22',
+    '2': '23',
+    '3': '20',
+    '4': '20',
+    '5': '26',
+    '6': '21',
+    '7': '19',
+    '8': '25',
+    '9': '24',
+    '10': '19',
+    '11': '23',
+    '12': '24',
+    '13': '26',
+};
