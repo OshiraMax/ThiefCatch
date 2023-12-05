@@ -1,18 +1,17 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text} from 'react-native';
 
 import { observer } from 'mobx-react';
-import { setCustomText } from 'react-native-global-props';
-import * as Font from 'expo-font';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
-import { globalStore } from './mobx/GlobalStore';
+import { globalStore } from './data/GlobalStore';
 import { handleTxtFileSelect } from './components/handleTxtFileSelect';
 import { handleXlsxFileSelect } from './components/handleXlsxFileSelect';
 import { compareData } from './components/compareData';
 import ModalWindow from './components/ModalWindow/ModalWindow';
 import StatusBar from './components/StatusBar/StatusBar';
 import updateStatusBar from './components/StatusBar/updateStatusBar';
+import AppInitializer from './components/AppInitializer';
 
 
 type ModalContentType = 'results' | 'settings';
@@ -24,26 +23,6 @@ const App: React.FC = () => {
     txtDate,
     xlsxDate,
   } = globalStore;
-
-  useEffect(() => {
-    async function loadFonts() {
-      try {
-        await Font.loadAsync({
-          'Futura Round Demi': require('./assets/fonts/FuturaRoundDemi.ttf'),
-        });
-        globalStore.setFontsLoaded(true);
-        const customTextProps = {
-          style: {
-            fontFamily: 'Futura Round Demi'
-          }
-        };
-        setCustomText(customTextProps);
-      } catch (error) {
-        console.error("Ошибка при загрузке шрифтов", error);
-      }
-    }
-    loadFonts();
-  }, []);
 
   useEffect(() => {
     if (txtDate && xlsxDate) {
@@ -72,66 +51,68 @@ const App: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.buttonContainer}>
-        <View>
-          <View style={styles.buttonFile}>
-            <TouchableOpacity style={styles.customButton} onPress={() => handleTxtFileSelect()}>
-              <Text style={styles.buttonText}>Лог</Text>
-              <Text style={styles.buttonText}>открытий</Text>
-            </TouchableOpacity>
+    <AppInitializer>
+      <View style={styles.container}>
+        <View style={styles.buttonContainer}>
+          <View>
+            <View style={styles.buttonFile}>
+              <TouchableOpacity style={styles.customButton} onPress={() => handleTxtFileSelect()}>
+                <Text style={styles.buttonText}>Лог</Text>
+                <Text style={styles.buttonText}>открытий</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.statusContainer}>
+              <View style={fileSelected.txt ? styles.statusIndicatorSelected : styles.statusIndicatorNotSelected} />
+              <Text style={fileSelected.txt ? styles.statusTextSelected : styles.statusTextNotSelected}>
+                {fileSelected.txt ? txtDate : 'Файл не выбран'}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.statusContainer}>
-            <View style={fileSelected.txt ? styles.statusIndicatorSelected : styles.statusIndicatorNotSelected} />
-            <Text style={fileSelected.txt ? styles.statusTextSelected : styles.statusTextNotSelected}>
-              {fileSelected.txt ? txtDate : 'Файл не выбран'}
-            </Text>
+          <View>
+            <View style={styles.buttonFile}>
+              <TouchableOpacity style={styles.customButton} onPress={() => handleXlsxFileSelect()}>
+                <Text style={styles.buttonText}>Лог</Text>
+                <Text style={styles.buttonText}>Продаж</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.statusContainer}>
+              <View style={fileSelected.xlsx ? styles.statusIndicatorSelected : styles.statusIndicatorNotSelected} />
+              <Text style={fileSelected.xlsx ? styles.statusTextSelected : styles.statusTextNotSelected}>
+                {fileSelected.xlsx ? xlsxDate : 'Файл не выбран'}
+              </Text>
+            </View>
           </View>
         </View>
 
-        <View>
-          <View style={styles.buttonFile}>
-            <TouchableOpacity style={styles.customButton} onPress={() => handleXlsxFileSelect()}>
-              <Text style={styles.buttonText}>Лог</Text>
-              <Text style={styles.buttonText}>Продаж</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statusContainer}>
-            <View style={fileSelected.xlsx ? styles.statusIndicatorSelected : styles.statusIndicatorNotSelected} />
-            <Text style={fileSelected.xlsx ? styles.statusTextSelected : styles.statusTextNotSelected}>
-              {fileSelected.xlsx ? xlsxDate : 'Файл не выбран'}
-            </Text>
-          </View>
+        <View style={styles.startButton} >
+          <TouchableOpacity 
+            style={[
+              styles.customButton, 
+              { backgroundColor: fileReady ? '#FF7F50' : 'green' }
+            ]} 
+            onPress={() => compareData()}>
+              <Text style={styles.buttonText}>{fileReady ? 'Сброс' : 'Старт'} </Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={styles.startButton} >
-        <TouchableOpacity 
-          style={[
-            styles.customButton, 
-            { backgroundColor: fileReady ? '#FF7F50' : 'green' }
-          ]} 
-          onPress={() => compareData()}>
-            <Text style={styles.buttonText}>{fileReady ? 'Сброс' : 'Старт'} </Text>
+        <View style={styles.watchButton}>
+          <TouchableOpacity style={styles.customButton} onPress={() => viewResult()}>
+            <Text style={styles.buttonText}>Посмотреть</Text>
+          </TouchableOpacity>
+        </View>
+
+        <StatusBar />
+
+        <TouchableOpacity onPress={handleSettingsPress} style={styles.settingsButton}>
+          <Icon name="gear" size={30} color="#fff" />
         </TouchableOpacity>
+
+        <ModalWindow />
       </View>
-
-      <View style={styles.watchButton}>
-        <TouchableOpacity style={styles.customButton} onPress={() => viewResult()}>
-          <Text style={styles.buttonText}>Посмотреть</Text>
-        </TouchableOpacity>
-      </View>
-
-      <StatusBar />
-
-      <TouchableOpacity onPress={handleSettingsPress} style={styles.settingsButton}>
-        <Icon name="gear" size={30} color="#fff" />
-      </TouchableOpacity>
-
-      <ModalWindow />
-    </View>
+    </AppInitializer>
   );
 };
 

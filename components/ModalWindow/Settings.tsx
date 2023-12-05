@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
 
 import { observer } from 'mobx-react';
 
-import { globalStore } from '../../mobx/GlobalStore';
+import { globalStore } from '../../data/GlobalStore';
 
 const Settings: React.FC = () => {
     const { timePeriodSec } = globalStore;
@@ -11,13 +11,17 @@ const Settings: React.FC = () => {
     return (
         <View>
             <View>
-                <Text style={styles.settingLabel}>Введите период времени (в секундах):</Text>
+                <Text style={styles.settingLabel}>Введите погрешность (сек):</Text>
                 <TextInput
                     style={styles.input}
                     onChangeText={(text) => globalStore.setTimePeriodSec(Number(text))}
                     value={timePeriodSec.toString()}
                     keyboardType="numeric"
                 />
+            </View>
+            
+            <View>
+                <Text>Режим работы приложения</Text>
             </View>
 
             <ScrollView>

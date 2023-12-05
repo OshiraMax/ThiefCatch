@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 
-import { globalStore } from '../mobx/GlobalStore';
+import { globalStore } from '../data/GlobalStore';
 import updateStatusBar from './StatusBar/updateStatusBar';
 
 const parseTimeToMilliseconds = (timeStr: string): number => {
@@ -11,7 +11,7 @@ const parseTimeToMilliseconds = (timeStr: string): number => {
 };
 
 const findNonMatchingEvents = (parsedEvents: string[], processedData: string[]) => {
-  const timePeriod = globalStore.timePeriodSec * 1000;
+  const timePeriod: number = (globalStore.timePeriodSec+30) * 1000;
 
   return parsedEvents.filter(parsedEvent => {
     const [parsedFloor, parsedTime] = parsedEvent.split(' ');
@@ -69,6 +69,7 @@ export const compareData = () => {
     });;
     globalStore.setNonMatchingData(nonMatchingEvents);
     globalStore.setFileReady(true);
+    globalStore.setSelectedFloor(null);
     updateStatusBar('Готово!', 'success');
   } else if (!fileSelected.txt) {
     updateStatusBar('Файл txt не выбран', 'error', 3000);

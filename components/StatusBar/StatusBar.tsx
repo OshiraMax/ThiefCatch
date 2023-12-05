@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import { observer } from 'mobx-react';
 
-import { globalStore } from '../../mobx/GlobalStore';
+import { globalStore } from '../../data/GlobalStore';
 
 const StatusBar: React.FC = () => {
   const { 

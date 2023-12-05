@@ -1,7 +1,9 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { globalStore } from '../mobx/GlobalStore';
+import { globalStore } from '../data/GlobalStore';
+import { showcaseToFloorMapping } from '../data/AsyncStorage';
 
 interface InfoToFloorMapping {
     [key: string]: string;
@@ -18,7 +20,11 @@ export const handleTxtFileSelect = async () => {
       const fileUri = result.assets[0].uri;
       const fileContent = await FileSystem.readAsStringAsync(fileUri);
 
-      const { parsedEvents, startDate } = parseTxtFile(fileContent);
+      const mappingString = await AsyncStorage.getItem('channelToFloorMapping');
+      const channelToFloorMapping: InfoToFloorMapping = mappingString ? JSON.parse(mappingString) : {};
+      console.log(channelToFloorMapping);
+
+      const { parsedEvents, startDate } = parseTxtFile(fileContent, channelToFloorMapping);
       globalStore.setParsedEvents(parsedEvents);
       globalStore.setTxtDate(startDate);
       globalStore.setFileSelected({ txt: true, xlsx: globalStore.fileSelected.xlsx });
@@ -30,7 +36,7 @@ export const handleTxtFileSelect = async () => {
   }
 };
 
-const parseTxtFile = (fileContent: string): { parsedEvents: string[], startDate: string } => {
+const parseTxtFile = (fileContent: string, channelToFloorMapping: InfoToFloorMapping): { parsedEvents: string[], startDate: string } => {
     const events = fileContent.split('Дата').filter(event => 
         event.includes('Начало события') && event.includes('Тип события:Локальная тревога')
       );
@@ -57,18 +63,3 @@ const parseTxtFile = (fileContent: string): { parsedEvents: string[], startDate:
       return { parsedEvents, startDate };  
     };
 
-const channelToFloorMapping: InfoToFloorMapping = {
-    '1': '22',
-    '2': '23',
-    '3': '20',
-    '4': '20',
-    '5': '26',
-    '6': '21',
-    '7': '19',
-    '8': '25',
-    '9': '24',
-    '10': '19',
-    '11': '23',
-    '12': '24',
-    '13': '26',
-};

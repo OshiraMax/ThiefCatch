@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 
 import { observer } from 'mobx-react';
 
-import { globalStore } from '../../mobx/GlobalStore';
+import { globalStore } from '../../data/GlobalStore';
 
 interface FloorTimeData {
     floor: number;
@@ -28,11 +28,11 @@ const Results: React.FC = () => {
             <View style={styles.floorSelectContainer}>
                 {uniqueFloors.map((floor) => (
                     <TouchableOpacity key={floor} onPress={() => handleSelectFloor(floor)}>
-                        <Text style={styles.floorSelectText}>{floor}</Text>
+                        <Text style={floor === selectedFloor ? styles.activeFloorSelectText : styles.floorSelectText}>{floor}</Text>
                     </TouchableOpacity>
                 ))}
                 <TouchableOpacity onPress={() => globalStore.setSelectedFloor(null)}>
-                    <Text style={styles.floorSelectText}>Все</Text>
+                    <Text style={selectedFloor === null ? styles.activeFloorSelectText : styles.floorSelectText}>Все</Text>
                 </TouchableOpacity>
             </View>
             
@@ -64,6 +64,14 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         padding: 5,
         backgroundColor: 'green',
+        borderRadius: 50,
+        color: 'white',
+    },
+    activeFloorSelectText: {
+        marginHorizontal: 5,
+        marginBottom: 10,
+        padding: 5,
+        backgroundColor: '#FF7F50', // Выбран активный цвет
         borderRadius: 50,
         color: 'white',
     },

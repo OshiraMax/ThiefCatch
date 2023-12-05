@@ -24,7 +24,7 @@ class GlobalStore {
   selectedFloor: number | null = null;
   fontsLoaded = false;
   modalContent: ModalContentType = 'results';
-  timePeriodSec = 60;
+  timePeriodSec: number = 0;
 
   constructor() {
     makeObservable(this, {

@@ -1,4 +1,4 @@
-import { globalStore } from '../../mobx/GlobalStore';
+import { globalStore } from '../../data/GlobalStore';
 
 type StatusType = 'error' | 'success';
 

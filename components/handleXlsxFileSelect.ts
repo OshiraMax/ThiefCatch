@@ -1,8 +1,9 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { globalStore } from '../mobx/GlobalStore';
+import { globalStore } from '../data/GlobalStore';
 
 interface ExcelDataRow {
   'Номер витрины': number;
@@ -24,6 +25,10 @@ export const handleXlsxFileSelect = async () => {
       globalStore.setFileReady(false);
       const fileUri = result.assets[0].uri;
       const fileContent = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
+
+      const mappingString = await AsyncStorage.getItem('showcaseToFloorMapping');
+      const showcaseToFloorMapping: InfoToFloorMapping = mappingString ? JSON.parse(mappingString) : {};
+      console.log(showcaseToFloorMapping);
 
       const workbook = XLSX.read(fileContent, { type: 'base64' });
       const sheetName = workbook.SheetNames[0];
@@ -87,17 +92,4 @@ const extractDateFromXlsx = (json: ExcelDataRow[]): string => {
 
   const formatTimePart = (value: number): string => {
     return value.toString().padStart(2, '0');
-  };
-
-
-  const showcaseToFloorMapping: InfoToFloorMapping = {
-    '667': '19',
-    '668': '20',
-    '669': '21',
-    '670': '22',
-    '671': '23',
-    '672': '24',
-    '673': '25',
-    '674': '26',
-    '854': '20',
   };
