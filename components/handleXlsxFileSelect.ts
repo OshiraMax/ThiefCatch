@@ -28,7 +28,6 @@ export const handleXlsxFileSelect = async () => {
 
       const mappingString = await AsyncStorage.getItem('showcaseToFloorMapping');
       const showcaseToFloorMapping: InfoToFloorMapping = mappingString ? JSON.parse(mappingString) : {};
-      console.log(showcaseToFloorMapping);
 
       const workbook = XLSX.read(fileContent, { type: 'base64' });
       const sheetName = workbook.SheetNames[0];

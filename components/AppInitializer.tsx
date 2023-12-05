@@ -1,4 +1,3 @@
-// AppInitializer.js
 import React, { ReactNode, useEffect, useState } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
@@ -17,11 +16,14 @@ const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
 
   useEffect(() => {
     async function initialize() {
-      await loadFonts();
-      await loadData();
+      await Promise.all([
+        loadFonts(),
+        loadData(),
+        new Promise(resolve => setTimeout(resolve, 1000)) 
+      ]);
       setIsReady(true);
     }
-
+  
     initialize();
   }, []);
 
@@ -60,7 +62,7 @@ const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   if (!isReady) {
     return (
         <View style={styles.container}>
-          <Image source={require('../assets/splash.png')} />
+          <Image source={require('../assets/splash.png')}/>
         </View>
       );
   }
@@ -75,5 +77,6 @@ const styles = StyleSheet.create({
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: 'black',
     },
 });

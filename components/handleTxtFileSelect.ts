@@ -22,7 +22,6 @@ export const handleTxtFileSelect = async () => {
 
       const mappingString = await AsyncStorage.getItem('channelToFloorMapping');
       const channelToFloorMapping: InfoToFloorMapping = mappingString ? JSON.parse(mappingString) : {};
-      console.log(channelToFloorMapping);
 
       const { parsedEvents, startDate } = parseTxtFile(fileContent, channelToFloorMapping);
       globalStore.setParsedEvents(parsedEvents);
