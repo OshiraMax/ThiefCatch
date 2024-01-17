@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { globalStore } from './GlobalStore';
 
 interface InfoToFloorMapping {
   [key: string]: string;
 }
 
-export const channelToFloorMapping: InfoToFloorMapping = {
+const channelToFloorMapping: InfoToFloorMapping = {
   '1': '22',
   '2': '23',
   '3': '20',
@@ -20,7 +21,7 @@ export const channelToFloorMapping: InfoToFloorMapping = {
   '13': '26',
 };
 
-export const showcaseToFloorMapping: InfoToFloorMapping = {
+const showcaseToFloorMapping: InfoToFloorMapping = {
   '667': '19',
   '668': '20',
   '669': '21',
@@ -32,25 +33,49 @@ export const showcaseToFloorMapping: InfoToFloorMapping = {
   '854': '20',
 };
 
-export const saveData = async () => {
-  try {
-    await AsyncStorage.setItem('channelToFloorMapping', JSON.stringify(channelToFloorMapping));
-    await AsyncStorage.setItem('showcaseToFloorMapping', JSON.stringify(showcaseToFloorMapping));
-  } catch (error) {
-    console.error('Error saving data', error);
-  }
-};
-
 export const loadData = async () => {
   try {
     const channelMappingString = await AsyncStorage.getItem('channelToFloorMapping');
     const showcaseMappingString = await AsyncStorage.getItem('showcaseToFloorMapping');
+    const timeAccuracyString = await AsyncStorage.getItem('timeAccuracy');
+    const timeShiftString = await AsyncStorage.getItem('timeShift');
     
-    if (channelMappingString !== null && showcaseMappingString !== null) {
-      const channelMapping = JSON.parse(channelMappingString);
-      const showcaseMapping = JSON.parse(showcaseMappingString);
+    let channelMapping: InfoToFloorMapping, showcaseMapping: InfoToFloorMapping, timeAccuracy: number, timeShift: number;
+
+    if (channelMappingString) {
+      channelMapping = JSON.parse(channelMappingString);
+    } else {
+      channelMapping = channelToFloorMapping;
+      await AsyncStorage.setItem('channelToFloorMapping', JSON.stringify(channelMapping));
     }
-  } catch (error) {
+
+    if (showcaseMappingString) {
+      showcaseMapping = JSON.parse(showcaseMappingString);
+    } else {
+      showcaseMapping = showcaseToFloorMapping;
+      await AsyncStorage.setItem('showcaseToFloorMapping', JSON.stringify(showcaseMapping));
+    }
+
+    if (timeAccuracyString) {
+      timeAccuracy = parseInt(timeAccuracyString, 10);
+    } else {
+      timeAccuracy = 30;
+      await AsyncStorage.setItem('timeAccuracy', timeAccuracy.toString());
+    }
+
+    if (timeShiftString) {
+      timeShift = parseInt(timeShiftString, 10);
+    } else {
+      timeShift = 0;
+      await AsyncStorage.setItem('timeShift', timeShift.toString());
+    }
+
+    globalStore.setChannelToFloorMapping(channelMapping);
+    globalStore.setShowcaseToFloorMapping(showcaseMapping);
+    globalStore.setTimeAccuracy(timeAccuracy);
+    globalStore.setTimeShift(timeShift);
+  } 
+  catch (error) {
     console.error('Error loading data', error);
   }
 };

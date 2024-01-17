@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, StatusBar } from 'react-native';
 
 import { observer } from 'mobx-react';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -9,7 +9,7 @@ import { handleTxtFileSelect } from './components/handleTxtFileSelect';
 import { handleXlsxFileSelect } from './components/handleXlsxFileSelect';
 import { compareData } from './components/compareData';
 import ModalWindow from './components/ModalWindow/ModalWindow';
-import StatusBar from './components/StatusBar/StatusBar';
+import StatusBarBottom from './components/StatusBar/StatusBar';
 import updateStatusBar from './components/StatusBar/updateStatusBar';
 import AppInitializer from './components/AppInitializer';
 
@@ -52,6 +52,10 @@ const App: React.FC = () => {
 
   return (
     <AppInitializer>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#111111" // Цвет фона статусбара
+      />
       <View style={styles.container}>
         <View style={styles.buttonContainer}>
           <View>
@@ -104,7 +108,7 @@ const App: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <StatusBar />
+        <StatusBarBottom />
 
         <TouchableOpacity onPress={handleSettingsPress} style={styles.settingsButton}>
           <Icon name="gear" size={30} color="#fff" />
@@ -127,7 +131,7 @@ const styles = StyleSheet.create({
     flex: 4,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: '30%',
+    marginTop: '20%',
   },
   customButton: {
     height: '120%',

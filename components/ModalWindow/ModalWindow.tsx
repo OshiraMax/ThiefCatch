@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, StyleSheet } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 
 import { observer } from 'mobx-react';
 
@@ -20,6 +20,12 @@ const ModalWindow: React.FC = () => {
             <View style={styles.modalView}>
                 {modalContent === 'results' && <Results />}
                 {modalContent === 'settings' && <Settings />}
+
+                <TouchableOpacity
+                    style={styles.button}
+                    onPress={() => globalStore.setIsModalVisible(!isModalVisible)}>
+                    <Text style={styles.textStyle}>Закрыть</Text>
+                </TouchableOpacity>
             </View>
         </Modal>
     );
@@ -29,12 +35,13 @@ export default observer(ModalWindow);
 
 const styles = StyleSheet.create({
     modalView: {
+        flex: 1,
         height: "95%",
         margin: 20,
-        marginBottom: 60,
         backgroundColor: "white",
-        borderRadius: 20,
+        borderRadius: 30,
         padding: 15,
+        justifyContent: 'space-between',
         alignItems: "center",
         shadowColor: "#000",
         shadowOffset: {
@@ -44,5 +51,18 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 5
+    },
+    button: {
+        marginTop: 15,
+        borderRadius: 20,
+        padding: 10,
+        paddingHorizontal: 50,
+        elevation: 2,
+        backgroundColor: "#2196F3",
+    },
+    textStyle: {
+        color: "white",
+        fontWeight: "bold",
+        textAlign: "center"
     },
 });

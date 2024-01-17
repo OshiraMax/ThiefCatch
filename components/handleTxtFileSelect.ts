@@ -1,9 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { globalStore } from '../data/GlobalStore';
-import { showcaseToFloorMapping } from '../data/AsyncStorage';
 
 interface InfoToFloorMapping {
     [key: string]: string;
@@ -20,10 +18,7 @@ export const handleTxtFileSelect = async () => {
       const fileUri = result.assets[0].uri;
       const fileContent = await FileSystem.readAsStringAsync(fileUri);
 
-      const mappingString = await AsyncStorage.getItem('channelToFloorMapping');
-      const channelToFloorMapping: InfoToFloorMapping = mappingString ? JSON.parse(mappingString) : {};
-
-      const { parsedEvents, startDate } = parseTxtFile(fileContent, channelToFloorMapping);
+      const { parsedEvents, startDate } = parseTxtFile(fileContent, globalStore.channelToFloorMapping);
       globalStore.setParsedEvents(parsedEvents);
       globalStore.setTxtDate(startDate);
       globalStore.setFileSelected({ txt: true, xlsx: globalStore.fileSelected.xlsx });

@@ -11,7 +11,7 @@ const parseTimeToMilliseconds = (timeStr: string): number => {
 };
 
 const findNonMatchingEvents = (parsedEvents: string[], processedData: string[]) => {
-  const timePeriod: number = (globalStore.timePeriodSec+30) * 1000;
+  const timePeriod: number = (globalStore.timeShift + globalStore.timeAccuracy) * 1000;
 
   return parsedEvents.filter(parsedEvent => {
     const [parsedFloor, parsedTime] = parsedEvent.split(' ');

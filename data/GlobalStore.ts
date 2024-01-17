@@ -1,8 +1,13 @@
 import { makeObservable, observable, action } from 'mobx';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface FloorTimeData {
   floor: number;
   time: string;
+}
+
+interface InfoToFloorMapping {
+  [key: string]: string;
 }
 
 type StatusType = 'error' | 'success';
@@ -24,7 +29,12 @@ class GlobalStore {
   selectedFloor: number | null = null;
   fontsLoaded = false;
   modalContent: ModalContentType = 'results';
-  timePeriodSec: number = 0;
+  
+  timeShift: number = 0;
+  timeAccuracy: number = 30;
+  channelToFloorMapping: InfoToFloorMapping = {};
+  showcaseToFloorMapping: InfoToFloorMapping = {};
+
 
   constructor() {
     makeObservable(this, {
@@ -43,7 +53,10 @@ class GlobalStore {
       selectedFloor: observable,
       fontsLoaded: observable,
       modalContent: observable,
-      timePeriodSec: observable,
+      timeShift: observable,
+      channelToFloorMapping: observable,
+      showcaseToFloorMapping: observable,
+      timeAccuracy: observable,
       
       setFileSelected: action,
       setDatesMatch: action,
@@ -60,7 +73,10 @@ class GlobalStore {
       setSelectedFloor: action,
       setFontsLoaded: action,
       setModalContent: action,
-      setTimePeriodSec: action,
+      setTimeShift: action,
+      setChannelToFloorMapping: action,
+      setShowcaseToFloorMapping: action,
+      setTimeAccuracy: action,
     });
   }
 
@@ -124,9 +140,29 @@ class GlobalStore {
     this.modalContent = value;
   }
 
-  setTimePeriodSec(value: number) {
-    this.timePeriodSec = value;
+  setTimeShift(value: number) {
+    this.timeShift = value;
+    AsyncStorage.setItem('timeShift', JSON.stringify(value))
+      .catch(error => console.error('Error saving timeShift', error));
   }
+
+  setTimeAccuracy(value: number) {
+    this.timeAccuracy = value;
+    AsyncStorage.setItem('timeAccuracy', JSON.stringify(value))
+      .catch(error => console.error('Error saving timeAccuracy', error));
+  }
+
+  setChannelToFloorMapping(mapping: InfoToFloorMapping) {
+    this.channelToFloorMapping = mapping;
+    AsyncStorage.setItem('channelToFloorMapping', JSON.stringify(mapping))
+      .catch(error => console.error('Error saving channelToFloorMapping', error));
+}
+
+  setShowcaseToFloorMapping(mapping: InfoToFloorMapping) {
+    this.showcaseToFloorMapping = mapping;
+    AsyncStorage.setItem('showcaseToFloorMapping', JSON.stringify(mapping))
+    .catch(error => console.error('Error saving showcaseToFloorMapping', error));
+}
 }
 
 export const globalStore = new GlobalStore();

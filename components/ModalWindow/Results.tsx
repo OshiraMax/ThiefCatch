@@ -24,7 +24,7 @@ const Results: React.FC = () => {
     const uniqueFloors = Array.from(new Set(nonMatchingData.map(item => item.floor))).sort((a, b) => a - b);
 
     return (
-        <View>
+        <View style={styles.container}>
             <View style={styles.floorSelectContainer}>
                 {uniqueFloors.map((floor) => (
                     <TouchableOpacity key={floor} onPress={() => handleSelectFloor(floor)}>
@@ -52,6 +52,9 @@ const Results: React.FC = () => {
 export default observer(Results);
 
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
     floorSelectContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',

@@ -1,7 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { globalStore } from '../data/GlobalStore';
 
@@ -9,10 +8,6 @@ interface ExcelDataRow {
   'Номер витрины': number;
   'Дата создания': string;
   'Оплачен': string;
-}
-
-interface InfoToFloorMapping {
-    [key: string]: string;
 }
 
 export const handleXlsxFileSelect = async () => {
@@ -26,9 +21,6 @@ export const handleXlsxFileSelect = async () => {
       const fileUri = result.assets[0].uri;
       const fileContent = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
 
-      const mappingString = await AsyncStorage.getItem('showcaseToFloorMapping');
-      const showcaseToFloorMapping: InfoToFloorMapping = mappingString ? JSON.parse(mappingString) : {};
-
       const workbook = XLSX.read(fileContent, { type: 'base64' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
@@ -38,7 +30,7 @@ export const handleXlsxFileSelect = async () => {
       globalStore.setFileSelected({ txt: globalStore.fileSelected.txt, xlsx: true });
 
       const processedData = json.filter(row => row['Оплачен'] === 'Да').map(row => {
-        const floor = showcaseToFloorMapping[row['Номер витрины'].toString()];
+        const floor = globalStore.showcaseToFloorMapping[row['Номер витрины'].toString()];
         if (!floor) return null;  // Исключаем строки с номерами витрин, которых нет в маппинге
         
         const date = parseDateString(row['Дата создания']);
